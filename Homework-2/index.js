@@ -3,6 +3,7 @@ var url = require('url');
 var http = require('http');
 var stringDecoder = require('string_decoder').StringDecoder;
 var handlers = require('./lib/handlers');
+var helpers = require('./lib/helpers');
 
 
 
@@ -16,7 +17,7 @@ var server = http.createServer(function(req, res){
 
     var queryStringObject = parsedUrl.query;
 
-    var headers = req.headers
+    var headers = req.headers;
 
     var decoder = new stringDecoder('utf-8')
     var buffer = ''
@@ -33,8 +34,8 @@ var server = http.createServer(function(req, res){
             'trimmedPath': trimmedPath,
             'method': method,
             'queryStringObject': queryStringObject,
-            'payload': JSON.parse(buffer),
-            'headers': headers
+            'headers': headers,
+            'payload': helpers.parseJsonToObject(buffer)
         };
 
         chosenHandler(data, function(statusCode, payload){
@@ -58,6 +59,8 @@ var server = http.createServer(function(req, res){
 router = {
     'ahoj': handlers.ahoj,
     'customers': handlers.customers,
+    'tokens': handlers.tokens,
+    'menu': handlers.menu
 }
 
 

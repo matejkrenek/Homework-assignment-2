@@ -4,9 +4,9 @@
  */
 
 // Dependencies
-const { LOADIPHLPAPI } = require('dns');
 var fs = require('fs');
-var path = require('path')
+var path = require('path');
+var helpers = require('./helpers');
 
 var lib = {};
 
@@ -47,7 +47,7 @@ lib.create = function(dir, file, data, callback){
 lib.read = function(dir, file, callback){
     fs.readFile(lib.storeDir+dir+'/'+file+'.json', 'utf-8', function(err, data){
         if(!err && data){
-            var parsedData = JSON.parse(data);
+            var parsedData = helpers.parseJsonToObject(data);
             callback(false, parsedData);
         } else{
             callback(err, data);
@@ -95,6 +95,16 @@ lib.delete = function(dir, file, callback){
         }
     });
 };
+
+lib.list = function(dir, callback){
+    fs.readdir(lib.storeDir+dir+'/', function(err, data){
+        if(!err && data && data.length > 0){
+            callback(false, data)
+        } else{
+            callback(err, data);
+        }
+    })
+}
 
 
 

@@ -5,6 +5,7 @@
 
 // Dependencies
 var fs = require('fs');
+const { type } = require('os');
 const lib = require('./data');
 var _data = require('./data');
 var helpers = require('./helpers');
@@ -59,6 +60,7 @@ handlers._customers.post = function(data, callback){
                     'zip_code': zip_code,
                     'building_number': building_number,
                     'street': street,
+                    'shopping_cart': [],
                     'agreement': true
                 };
 
@@ -548,23 +550,181 @@ handlers.shoppingCart = function(data, callback){
 handlers._shoppingCart = {};
 
 // ShoppingCart - POST
+// Required data: tokenID
+// Required data: at least one item from the menu list
 handlers._shoppingCart.post = function(data, callback){
+    // Required data
+    var tokenID = typeof(data.payload.tokenID) == 'string' && data.payload.tokenID.trim().length == 20 ? data.payload.tokenID.trim() : false;
     
+    // Optional data
+    var addToCart = typeof(data.payload.addToCart) == 'string' && data.payload.addToCart.trim().length > 0 ? data.payload.addToCart.trim() : false
+
+    if(tokenID){
+        if(addToCart){
+            _data.read('tokens', tokenID, function(err, tokenData){
+                if(!err && tokenData.expires > Date.now()){
+                        _data.read('menu', addToCart, function(err, data){
+                            if(!err && data){
+                                _data.read('customers', tokenData.email_address, function(err, customerData){
+                                    if(!err && customerData){
+                                        customerData.shopping_cart.push(addToCart);
+
+                                        _data.update('customers', tokenData.email_address, customerData, function(err){
+                                            if(!err){
+                                                callback(200)
+                                            } else{
+                                                callback(500, {'Error': `Could not update the customer file ${err}`})
+                                            }
+                                        })
+                                    } else{
+                                        callback(400, {'Error': 'Customer may not exist'})
+                                    }
+                                })
+                            }else{
+                                callback(400, {'Error': 'Item of this name doesn\'t exist inside of menu list'});
+                            }
+                        })
+                } else{
+                    callback(400, {'Error': 'Token may not exist or is not valid'});
+                }
+            })
+        } else{
+            callback(400, {'Error': 'Missing required fields'});
+        }
+    } else{
+        callback(400, {'Error': 'Missing required fields'});
+    }
 }
 // ShoppingCart - GET
+// Required data: tokenID
+// Optional data: none
+handlers._shoppingCart.get = function(data, callback){
+    var tokenID = typeof(data.queryStringObject.tokenID) == 'string' && data.queryStringObject.tokenID.trim().length == 20 ? data.queryStringObject.tokenID.trim() : false;
+
+    if(tokenID){
+        _data.read('tokens', tokenID, function(err, tokenData){
+            if(!err && tokenData.expires > Date.now()){
+                _data.read('customers', tokenData.email_address, function(err, customerData){
+                    if(!err && customerData){
+                        if(customerData.shopping_cart.length > 0){
+                            callback(200, {'Shopping Cart': customerData.shopping_cart})
+                        } else{
+                            callback(200, {'Shopping cart is empty': customerData.shopping_cart})
+                        }
+                    } else{
+                        callback(500, {'Error': 'Could not read the customers file'})
+                    }
+                })
+            } else{
+                callback(400, {'Error': 'Token may not exist or is not valid'})
+            }
+        })
+    } else{
+        callback(400, {'Error': 'Missing required data'});
+    }
+}
+
 // ShoppingCart - PUT
+// Verified customer can add an item to the shopping cart or delete a item from shopping cart
+// Required data: tokenID, addOrDelete, item
+// Optional data: none
+handlers._shoppingCart.put = function(data, callback){
+    var tokenID = typeof(data.payload.tokenID) == 'string' && data.payload.tokenID.trim().length == 20 ? data.payload.tokenID.trim() : false;
+    var addOrDelete = typeof(data.payload.addOrDelete) == 'string' && ['add', 'delete'].indexOf(data.payload.addOrDelete) > -1 ? data.payload.addOrDelete : false;
+    var item = typeof(data.payload.item) == 'string' && data.payload.item.trim().length > 0 ? data.payload.item.trim() : false;
+
+    if(tokenID && addOrDelete && item){
+        _data.read('tokens', tokenID, function(err, tokenData){
+            if(!err && tokenData.expires > Date.now()){
+                if(addOrDelete === 'add'){
+                    _data.read('menu', item, function(err, itemData){
+                        if(!err && itemData){
+                            _data.read('customers', tokenData.email_address, function(err, customerData){
+                                if(!err && customerData){
+                                    customerData.shopping_cart.push(item)
+
+                                    _data.update('customers', tokenData.email_address, customerData, function(err){
+                                        if(!err){
+                                            callback(200);
+                                        } else{
+                                            callback(500, {'Error': 'Could not add an item to the shopping cart'});
+                                        }
+                                    })
+                                } else{
+                                    callback(400, {'Error': 'Customer may not exist'})
+                                }
+                            })
+                        } else{
+                            callback(400, {'Error': 'Item of this name doesn\'t exist inside of menu list'})
+                        }
+                    })
+                } else {
+                    _data.read('customers', tokenData.email_address, function(err, customerData){
+                        if(!err && customerData){
+                            var indexOfItem = customerData.shopping_cart.indexOf(item)
+                            var cart = customerData.shopping_cart
+
+                            customerData.shopping_cart = cart.slice(0, indexOfItem).concat(cart.slice(indexOfItem + 1, cart.length))
+                            
+                            _data.update('customers', tokenData.email_address, customerData, function(err){
+                                if(!err){
+                                    callback(200, {'res':customerData})
+                                } else{
+                                    callback(500, {'Error': 'Could not delete item from shopping cart'})
+                                }
+                            })
+                        } else{
+                            callback(400, {'Error': 'Customer may not exist'})
+                        }
+                    })
+                }
+            } else{
+                callback(400, {'Error': 'Token doesn\'t exist or is not valid'})
+            }
+        })
+    } else{
+        callback(400, {'Error': 'Missing required fields'})
+    }
+
+}
+
 // ShoppingCart - DELETE
+// Verified customer can delete All items from his shopping cart
+// Required data: tokenID
+// Optional data: none
+handlers._shoppingCart.delete = function(data, callback){
+    var tokenID = typeof(data.queryStringObject.tokenID) == 'string' && data.queryStringObject.tokenID.trim().length == 20 ? data.queryStringObject.tokenID.trim() : false;
 
+    if(tokenID){
+        _data.read('tokens', tokenID, function(err, tokenData){
+            if(!err && tokenData.expires > Date.now()){
+                _data.read('customers', tokenData.email_address, function(err, customerData){
+                    if(!err && customerData){
+                        if(customerData.shopping_cart.length > 0){
+                            customerData.shopping_cart = []
 
-
-
-
-
-
-
-
-
-
+                            _data.update('customers', tokenData.email_address, customerData, function(err){
+                                if(!err){
+                                    callback(200)
+                                } else{
+                                    callback(500, {'Error': 'Could not clear the shopping cart'})
+                                }
+                            })
+                        } else{
+                            callback(200, {'Shopping cart is already empty': customerData.shopping_cart})
+                        }
+                    } else{
+                        callback(400, {'Error': 'Customer may not exist'})
+                    }
+                })
+            } else{
+                callback(400, {'Error': 'Token doesn\'t exist or is not valid'})
+            }
+        })
+    } else{
+        callback(400, {'Error': 'Missing required fields'})
+    }
+}
 
 
 // export module

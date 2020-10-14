@@ -96,16 +96,20 @@ lib.delete = function(dir, file, callback){
     });
 };
 
-lib.list = function(dir, callback){
-    fs.readdir(lib.storeDir+dir+'/', function(err, data){
-        if(!err && data && data.length > 0){
-            callback(false, data)
-        } else{
-            callback(err, data);
-        }
-    })
-}
 
+lib.list = function(dir,callback){
+    fs.readdir(lib.baseDir+dir+'/', function(err,files){
+      if(!err && files && data.files > 0){
+        var trimmedFileNames = [];
+        data.forEach(function(fileName){
+          trimmedFileNames.push(fileName.replace('.json',''));
+        });
+        callback(false,trimmedFileNames);
+      } else {
+        callback(err,data);
+      }
+    });
+  };
 
 
 

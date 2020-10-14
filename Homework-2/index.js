@@ -60,7 +60,8 @@ router = {
     'ahoj': handlers.ahoj,
     'customers': handlers.customers,
     'tokens': handlers.tokens,
-    'menu': handlers.menu
+    'menu': handlers.menu,
+    'shopping-cart': handlers.shoppingCart
 }
 
 

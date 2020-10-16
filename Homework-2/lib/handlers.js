@@ -361,7 +361,7 @@ handlers._menu = {}
 handlers._menu.post = function(data, callback){
     var pizza_name = typeof(data.payload.pizza_name) == "string" && data.payload.pizza_name.trim().length > 0 ? data.payload.pizza_name.trim() : false;
     var ingredients = typeof(data.payload.ingredients) == "object" && data.payload.ingredients instanceof Array && data.payload.ingredients.length > 0 ? data.payload.ingredients : false;
-    var price = typeof(data.payload.price) == "string" && data.payload.price.trim().length > 0 ? data.payload.price.trim() : false;
+    var price = typeof(data.payload.price) == "number" && data.payload.price.length > 0 ? data.payload.price : false;
 
     if(pizza_name && ingredients && price){
 
@@ -444,7 +444,7 @@ handlers._menu.put = function(data, callback){
 
     // Optional data
     var ingredients = typeof(data.payload.ingredients) == "object" && data.payload.ingredients instanceof Array && data.payload.ingredients.length > 0 ? data.payload.ingredients : false;
-    var price = typeof(data.payload.price) == "string" && data.payload.price.trim().length > 0 ? data.payload.price.trim() : false;
+    var price = typeof(data.payload.price) == "number" && data.payload.price.length > 0 ? data.payload.price : false;
 
     if(pizza_name){
         if(ingredients || price){       

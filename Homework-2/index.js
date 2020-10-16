@@ -1,13 +1,47 @@
 // Dependencies
 var url = require('url');
 var http = require('http');
+var https = require('https')
 var stringDecoder = require('string_decoder').StringDecoder;
 var handlers = require('./lib/handlers');
 var helpers = require('./lib/helpers');
+var config = require('./lib/config')
+var fs = require('fs')
 
+var makingPay = {
+    "amount": 1500,
+    "currency": "czk",
+    "source": "tok_visa_debit",
+    "description": "hello there"
+}
 
+helpers.makePayment(makingPay, function(err){
+    console.log('this was the error', err)
+})
 
-var server = http.createServer(function(req, res){
+var httpServer = http.createServer(function(req, res){
+    unifiedServer(req, res)
+})
+
+httpServer.listen(config.httpPort, function(){
+    console.log("Server is listening on port", +config.httpPort);
+});
+
+var httpsServerOptions = {
+    'key': fs.readFileSync('./https/key.pem'),
+    'cert': fs.readFileSync('./https/cert.pem')
+
+}
+
+var httpsServer = https.createServer(httpsServerOptions, function(req, res){
+    unifiedServer(req, res)
+}) 
+
+httpsServer.listen(config.httpsPort, function(){
+    console.log("Server is listening on port", +config.httpsPort);
+});
+
+var unifiedServer = function(req, res){
     var parsedUrl = url.parse(req.url, true);
 
     var path = parsedUrl.pathname;
@@ -53,7 +87,7 @@ var server = http.createServer(function(req, res){
         })
     
     })
-});
+};
 
 
 router = {
@@ -65,7 +99,5 @@ router = {
 }
 
 
-server.listen(3000, function(){
-    console.log("Server is listening on port 3000");
-});
+
 

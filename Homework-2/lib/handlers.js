@@ -4,9 +4,6 @@
  */
 
 // Dependencies
-var fs = require('fs');
-const { type } = require('os');
-const lib = require('./data');
 var _data = require('./data');
 var helpers = require('./helpers');
 
@@ -77,7 +74,7 @@ handlers._customers.post = function(data, callback){
         })
 
     } else{
-        callback(400, {'Error': 'Missing required fields '+email_address});
+        callback(400, {'Error': 'Missing required fields '+zip_code});
     }
 }
 
@@ -90,9 +87,9 @@ handlers._customers.get = function(data, callback){
 
     if(email_address){
 
-        var token = typeof(data.headers.token) == "string" && data.headers.token.trim().length == 20 ? data.headers.token.trim() : false;
+        var token_id = typeof(data.headers.token_id) == "string" && data.headers.token_id.trim().length == 20 ? data.headers.token_id.trim() : false;
 
-        handlers._tokens.verifyTokenValidation(token, email_address, function(tokenIsValid){
+        handlers._tokens.verifyTokenValidation(token_id, email_address, function(tokenIsValid){
             if(tokenIsValid){
                 _data.read('customers', email_address, function(err, data){
                     if(!err && data){
@@ -130,9 +127,9 @@ handlers._customers.put = function(data, callback){
         // Check that at least one of the optinal field is filled out
         if(first_name || last_name || zip_code || building_number || street){
 
-            var token = typeof(data.headers.token) == "string" && data.headers.token.trim().length == 20 ? data.headers.token.trim() : false;
+            var token_id = typeof(data.headers.token_id) == "string" && data.headers.token_id.trim().length == 20 ? data.headers.token_id.trim() : false;
 
-            handlers._tokens.verifyTokenValidation(token, email_address, function(tokenIsValid){
+            handlers._tokens.verifyTokenValidation(token_id, email_address, function(tokenIsValid){
                 if(tokenIsValid){
                     _data.read('customers', email_address, function(err, customerData){
                         if(!err && customerData){
@@ -190,22 +187,26 @@ handlers._customers.delete = function(data, callback){
 
     if(email_address){
 
-        var token = typeof(data.headers.token) == "string" && data.headers.token.trim().length == 20 ? data.headers.token.trim() : false;
+        var token_id = typeof(data.headers.token_id) == "string" && data.headers.token_id.trim().length == 20 ? data.headers.token_id.trim() : false;
 
-        handlers._tokens.verifyTokenValidation(token, email_address, function(tokenIsValid){
-            _data.read('customers', email_address, function(err, customerData){
-                if(!err && customerData){
-                    _data.delete('customers', email_address, function(err){
-                        if(!err){
-                            callback(200)
-                        } else{
-                            callback(500, {'Error': 'Could not delete the user'})
-                        }
-                    })
-                } else{
-                    callback(400, {'Error': 'Could not find the specified user'})
-                }
-            })
+        handlers._tokens.verifyTokenValidation(token_id, email_address, function(tokenIsValid){
+            if(tokenIsValid){
+                _data.read('customers', email_address, function(err, customerData){
+                    if(!err && customerData){
+                        _data.delete('customers', email_address, function(err){
+                            if(!err){
+                                callback(200)
+                            } else{
+                                callback(500, {'Error': 'Could not delete the user'})
+                            }
+                        })
+                    } else{
+                        callback(400, {'Error': 'Could not find the specified user'})
+                    }
+                })
+            } else{
+                callback(403,{"Error" : "Missing required token in header, or token is invalid."});
+            }
         });
 
     } else{
@@ -233,17 +234,17 @@ handlers._tokens.post = function(data, callback){
         _data.read('customers', email_address, function(err, customerData){
             if(!err && customerData){
                 // Create token with random name. Set expiration date 1 hour from now
-                var tokenID = helpers.createRandomString(20);
+                var token_id = helpers.createRandomString(20);
                 var expires = Date.now() + 1000 * 60 * 60;
 
                 var tokenObject = {
                     'email_address': email_address,
-                    'tokenID': tokenID,
+                    'token_id': token_id,
                     'expires': expires
                 };
                 
                 // store the tokenObject
-                _data.create('tokens', tokenID, tokenObject, function(err){
+                _data.create('tokens', token_id, tokenObject, function(err){
                     if(!err){
                         callback(200, tokenObject);
                     } else{
@@ -257,12 +258,12 @@ handlers._tokens.post = function(data, callback){
     };
 };
 // Tokens - GET
-// Required: tokenID
+// Required: token_id
 handlers._tokens.get = function(data, callback){
-    var tokenID = typeof(data.queryStringObject.tokenID) == 'string' && data.queryStringObject.tokenID.trim().length == 20 ? data.queryStringObject.tokenID.trim() : false;
+    var token_id = typeof(data.queryStringObject.token_id) == 'string' && data.queryStringObject.token_id.trim().length == 20 ? data.queryStringObject.token_id.trim() : false;
 
-    if(tokenID){
-        _data.read('tokens', tokenID, function(err, tokenData){
+    if(token_id){
+        _data.read('tokens', token_id, function(err, tokenData){
             if(!err && tokenData){
                 callback(200, tokenData)
             } else{
@@ -275,19 +276,19 @@ handlers._tokens.get = function(data, callback){
 }
 
 // Tokens - PUT
-// Required: tokenID, extend
+// Required: token_id, extend
 // Optional: none
 handlers._tokens.put = function(data, callback){
-    var tokenID = typeof(data.payload.tokenID) == 'string' && data.payload.tokenID.trim().length == 20 ? data.payload.tokenID.trim() : false;
+    var token_id = typeof(data.payload.token_id) == 'string' && data.payload.token_id.trim().length == 20 ? data.payload.token_id.trim() : false;
     var extend = typeof(data.payload.extend) == 'boolean' && data.payload.extend == true ? true : false;
 
-    if(tokenID && extend){
-        _data.read('tokens', tokenID, function(err, tokenData){
+    if(token_id && extend){
+        _data.read('tokens', token_id, function(err, tokenData){
             if(!err && tokenData){
                 if(tokenData.expires > Date.now()){
                     tokenData.expires = Date.now() + 1000 * 60 * 60;
 
-                    _data.update('tokens', tokenID, tokenData, function(err){
+                    _data.update('tokens', token_id, tokenData, function(err){
                         if(!err){
                             callback(200)
                         } else{
@@ -307,14 +308,14 @@ handlers._tokens.put = function(data, callback){
     }
 }
 // Tokens - DELETE
-// Required: tokenID
+// Required: token_id
 handlers._tokens.delete = function(data, callback){
-    var tokenID = typeof(data.queryStringObject.tokenID) == 'string' && data.queryStringObject.tokenID.trim().length == 20 ? data.queryStringObject.tokenID.trim() : false;
+    var token_id = typeof(data.queryStringObject.token_id) == 'string' && data.queryStringObject.token_id.trim().length == 20 ? data.queryStringObject.token_id.trim() : false;
 
-    if(tokenID){
-        _data.read('tokens', tokenID, function(err, tokenData){
+    if(token_id){
+        _data.read('tokens', token_id, function(err, tokenData){
             if(!err && tokenData){
-                _data.delete('tokens', tokenID, function(err){
+                _data.delete('tokens', token_id, function(err){
                     if(!err){
                         callback(200)
                     } else{
@@ -330,8 +331,8 @@ handlers._tokens.delete = function(data, callback){
     }
 }
 
-handlers._tokens.verifyTokenValidation = function(tokenID, email_address, callback){
-    _data.read('tokens', tokenID, function(err, tokenData){
+handlers._tokens.verifyTokenValidation = function(token_id, email_address, callback){
+    _data.read('tokens', token_id, function(err, tokenData){
         if(!err && tokenData){
             if(tokenData.email_address == email_address && tokenData.expires > Date.now()){
                 callback(true)
@@ -361,7 +362,7 @@ handlers._menu = {}
 handlers._menu.post = function(data, callback){
     var pizza_name = typeof(data.payload.pizza_name) == "string" && data.payload.pizza_name.trim().length > 0 ? data.payload.pizza_name.trim() : false;
     var ingredients = typeof(data.payload.ingredients) == "object" && data.payload.ingredients instanceof Array && data.payload.ingredients.length > 0 ? data.payload.ingredients : false;
-    var price = typeof(data.payload.price) == "number" && data.payload.price.length > 0 ? data.payload.price : false;
+    var price = typeof(data.payload.price) == "number" && data.payload.price > 0 ? data.payload.price : false;
 
     if(pizza_name && ingredients && price){
 
@@ -377,7 +378,8 @@ handlers._menu.post = function(data, callback){
                             var pizzaObject = {
                                 "name": pizza_name,
                                 "ingredients": ingredients,
-                                "price": price
+                                "price": price,
+                                "curency": "czk"
                             }
                             _data.create('menu', pizza_name, pizzaObject, function(err){
                                 if(!err){
@@ -400,32 +402,41 @@ handlers._menu.post = function(data, callback){
         
 
     } else{
-        callback(400, {'Error': 'Missing required fields'})
+        callback(400, {'Error': `Missing required fields ${price}`})
     }
 }
 
 // Menu - GET
-// Required: tokenID
+// Required: token_id
 // @TODO only let a log in customer to get menu list
 handlers._menu.get = function(data, callback){
-    var tokenID = typeof(data.queryStringObject.tokenID) == 'string' && data.queryStringObject.tokenID.trim().length == 20 ? data.queryStringObject.tokenID.trim() : false;
+    var email_address = typeof(data.payload.email_address) == 'string' && data.payload.email_address.trim().length > 0 && data.payload.email_address.trim().indexOf('@') > -1 && data.payload.email_address.trim().indexOf('.') > -1&& (data.payload.email_address.trim().split('.').length -1) >= 2 ? data.payload.email_address.trim() : false;
 
-    if(tokenID){
-        _data.read('tokens', tokenID, function(err, tokenData){
-            if(!err && tokenData.expires > Date.now()){
-                _data.list('menu', function(err, files){
-                    if(!err && files){
-                        var trimmedMenu = []
-                        files.forEach(function(file){
-                            trimmedMenu.push(file.replace('.json', ''))
+    if(email_address){
+        var token_id = typeof(data.headers.token_id) == 'string' && data.headers.token_id.trim().length == 20 ? data.headers.token_id.trim() : false;
+
+        handlers._tokens.verifyTokenValidation(token_id, email_address, function(tokenIsValid){
+            if(tokenIsValid){
+                _data.read('customers', email_address, function(err, customerData){
+                    if(!err && customerData){
+                        _data.list('menu', function(err, files){
+                            if(!err && files){
+                                var trimmedMenu = []
+                                files.forEach(function(file){
+                                    trimmedMenu.push(file.replace('.json', ''))
+                                })
+                                callback(200, {'menu_list': trimmedMenu})
+                            } else{
+                                callback(400, {'Error': `Directory may not exist ${err}`});
+                            }
                         })
-                        callback(200, {'menu_list': trimmedMenu})
-                    } else{
-                        callback(400, {'Error': 'Directory may not exist'});
+                    } else {
+                        callback(400, {'Error': 'Customer may not exist'})
                     }
                 })
+                
             } else{
-                callback(400, {'Error': `Token does not exist or is not valid ${tokenID}`})
+                callback(403,{"Error" : "Missing required token in header, or token is invalid."});
             }
         })
     } else{
@@ -444,7 +455,7 @@ handlers._menu.put = function(data, callback){
 
     // Optional data
     var ingredients = typeof(data.payload.ingredients) == "object" && data.payload.ingredients instanceof Array && data.payload.ingredients.length > 0 ? data.payload.ingredients : false;
-    var price = typeof(data.payload.price) == "number" && data.payload.price.length > 0 ? data.payload.price : false;
+    var price = typeof(data.payload.price) == "number" && data.payload.price > 0 ? data.payload.price : false;
 
     if(pizza_name){
         if(ingredients || price){       
@@ -550,26 +561,28 @@ handlers.shoppingCart = function(data, callback){
 handlers._shoppingCart = {};
 
 // ShoppingCart - POST
-// Required data: tokenID
+// Required data: token_id
 // Required data: at least one item from the menu list
 handlers._shoppingCart.post = function(data, callback){
     // Required data
-    var tokenID = typeof(data.payload.tokenID) == 'string' && data.payload.tokenID.trim().length == 20 ? data.payload.tokenID.trim() : false;
-    
+    var email_address = typeof(data.payload.email_address) == 'string' && data.payload.email_address.trim().length > 0 && data.payload.email_address.trim().indexOf('@') > -1 && data.payload.email_address.trim().indexOf('.') > -1&& (data.payload.email_address.trim().split('.').length -1) >= 2 ? data.payload.email_address.trim() : false;
+
     // Optional data
     var addToCart = typeof(data.payload.addToCart) == 'string' && data.payload.addToCart.trim().length > 0 ? data.payload.addToCart.trim() : false
 
-    if(tokenID){
+    if(email_address){
         if(addToCart){
-            _data.read('tokens', tokenID, function(err, tokenData){
-                if(!err && tokenData.expires > Date.now()){
+            var token_id = typeof(data.headers.token_id) == 'string' && data.headers.token_id.trim().length == 20 ? data.headers.token_id.trim() : false;
+
+            handlers._tokens.verifyTokenValidation(token_id, email_address, function(tokenIsValid){
+                if(tokenIsValid){
                         _data.read('menu', addToCart, function(err, data){
                             if(!err && data){
-                                _data.read('customers', tokenData.email_address, function(err, customerData){
+                                _data.read('customers', email_address, function(err, customerData){
                                     if(!err && customerData){
                                         customerData.shopping_cart.push(addToCart);
 
-                                        _data.update('customers', tokenData.email_address, customerData, function(err){
+                                        _data.update('customers', email_address, customerData, function(err){
                                             if(!err){
                                                 callback(200)
                                             } else{
@@ -585,7 +598,7 @@ handlers._shoppingCart.post = function(data, callback){
                             }
                         })
                 } else{
-                    callback(400, {'Error': 'Token may not exist or is not valid'});
+                    callback(403,{"Error" : "Missing required token in header, or token is invalid."});
                 }
             })
         } else{
@@ -596,15 +609,17 @@ handlers._shoppingCart.post = function(data, callback){
     }
 }
 // ShoppingCart - GET
-// Required data: tokenID
+// Required data: token_id
 // Optional data: none
 handlers._shoppingCart.get = function(data, callback){
-    var tokenID = typeof(data.queryStringObject.tokenID) == 'string' && data.queryStringObject.tokenID.trim().length == 20 ? data.queryStringObject.tokenID.trim() : false;
+    var email_address = typeof(data.queryStringObject.email_address) == 'string' && data.queryStringObject.email_address.trim().length > 0 && data.queryStringObject.email_address.trim().indexOf('@') > -1 && data.queryStringObject.email_address.trim().indexOf('.') > -1&& (data.queryStringObject.email_address.trim().split('.').length -1) >= 2 ? data.queryStringObject.email_address.trim() : false;
 
-    if(tokenID){
-        _data.read('tokens', tokenID, function(err, tokenData){
-            if(!err && tokenData.expires > Date.now()){
-                _data.read('customers', tokenData.email_address, function(err, customerData){
+    if(email_address){
+        var token_id = typeof(data.headers.token_id) == 'string' && data.headers.token_id.trim().length == 20 ? data.headers.token_id.trim() : false;
+
+        handlers._tokens.verifyTokenValidation(token_id, email_address, function(tokenIsValid){
+            if(tokenIsValid){
+                _data.read('customers', email_address, function(err, customerData){
                     if(!err && customerData){
                         if(customerData.shopping_cart.length > 0){
                             callback(200, {'Shopping Cart': customerData.shopping_cart})
@@ -616,7 +631,7 @@ handlers._shoppingCart.get = function(data, callback){
                     }
                 })
             } else{
-                callback(400, {'Error': 'Token may not exist or is not valid'})
+                callback(403,{"Error" : "Missing required token in header, or token is invalid."});
             }
         })
     } else{
@@ -626,24 +641,26 @@ handlers._shoppingCart.get = function(data, callback){
 
 // ShoppingCart - PUT
 // Verified customer can add an item to the shopping cart or delete a item from shopping cart
-// Required data: tokenID, addOrDelete, item
+// Required data: token_id, addOrDelete, item
 // Optional data: none
 handlers._shoppingCart.put = function(data, callback){
-    var tokenID = typeof(data.payload.tokenID) == 'string' && data.payload.tokenID.trim().length == 20 ? data.payload.tokenID.trim() : false;
+    var email_address = typeof(data.payload.email_address) == 'string' && data.payload.email_address.trim().length > 0 && data.payload.email_address.trim().indexOf('@') > -1 && data.payload.email_address.trim().indexOf('.') > -1&& (data.payload.email_address.trim().split('.').length -1) >= 2 ? data.payload.email_address.trim() : false;
     var addOrDelete = typeof(data.payload.addOrDelete) == 'string' && ['add', 'delete'].indexOf(data.payload.addOrDelete) > -1 ? data.payload.addOrDelete : false;
     var item = typeof(data.payload.item) == 'string' && data.payload.item.trim().length > 0 ? data.payload.item.trim() : false;
 
-    if(tokenID && addOrDelete && item){
-        _data.read('tokens', tokenID, function(err, tokenData){
-            if(!err && tokenData.expires > Date.now()){
+    if(email_address && addOrDelete && item){
+        var token_id = typeof(data.headers.token_id) == 'string' && data.headers.token_id.trim().length == 20 ? data.headers.token_id.trim() : false;
+
+        handlers._tokens.verifyTokenValidation(token_id, email_address, function(tokenIsValid){
+            if(tokenIsValid){
                 if(addOrDelete === 'add'){
                     _data.read('menu', item, function(err, itemData){
                         if(!err && itemData){
-                            _data.read('customers', tokenData.email_address, function(err, customerData){
+                            _data.read('customers', email_address, function(err, customerData){
                                 if(!err && customerData){
                                     customerData.shopping_cart.push(item)
 
-                                    _data.update('customers', tokenData.email_address, customerData, function(err){
+                                    _data.update('customers', email_address, customerData, function(err){
                                         if(!err){
                                             callback(200);
                                         } else{
@@ -659,16 +676,16 @@ handlers._shoppingCart.put = function(data, callback){
                         }
                     })
                 } else {
-                    _data.read('customers', tokenData.email_address, function(err, customerData){
+                    _data.read('customers', email_address, function(err, customerData){
                         if(!err && customerData){
                             var indexOfItem = customerData.shopping_cart.indexOf(item)
                             var cart = customerData.shopping_cart
 
                             customerData.shopping_cart = cart.slice(0, indexOfItem).concat(cart.slice(indexOfItem + 1, cart.length))
                             
-                            _data.update('customers', tokenData.email_address, customerData, function(err){
+                            _data.update('customers', email_address, customerData, function(err){
                                 if(!err){
-                                    callback(200, {'res':customerData})
+                                    callback(200)
                                 } else{
                                     callback(500, {'Error': 'Could not delete item from shopping cart'})
                                 }
@@ -679,7 +696,7 @@ handlers._shoppingCart.put = function(data, callback){
                     })
                 }
             } else{
-                callback(400, {'Error': 'Token doesn\'t exist or is not valid'})
+                callback(403,{"Error" : "Missing required token in header, or token is invalid."});
             }
         })
     } else{
@@ -690,20 +707,23 @@ handlers._shoppingCart.put = function(data, callback){
 
 // ShoppingCart - DELETE
 // Verified customer can delete All items from his shopping cart
-// Required data: tokenID
+// Required data: token_id
 // Optional data: none
 handlers._shoppingCart.delete = function(data, callback){
-    var tokenID = typeof(data.queryStringObject.tokenID) == 'string' && data.queryStringObject.tokenID.trim().length == 20 ? data.queryStringObject.tokenID.trim() : false;
+    var email_address = typeof(data.queryStringObject.email_address) == 'string' && data.queryStringObject.email_address.trim().length > 0 && data.queryStringObject.email_address.trim().indexOf('@') > -1 && data.queryStringObject.email_address.trim().indexOf('.') > -1&& (data.queryStringObject.email_address.trim().split('.').length -1) >= 2 ? data.queryStringObject.email_address.trim() : false;
 
-    if(tokenID){
-        _data.read('tokens', tokenID, function(err, tokenData){
-            if(!err && tokenData.expires > Date.now()){
-                _data.read('customers', tokenData.email_address, function(err, customerData){
+
+    if(email_address){
+        var token_id = typeof(data.headers.token_id) == 'string' && data.headers.token_id.trim().length == 20 ? data.headers.token_id.trim() : false;
+
+        handlers._tokens.verifyTokenValidation(token_id, email_address, function(tokenIsValid){
+            if(tokenIsValid){
+                _data.read('customers', email_address, function(err, customerData){
                     if(!err && customerData){
                         if(customerData.shopping_cart.length > 0){
                             customerData.shopping_cart = []
 
-                            _data.update('customers', tokenData.email_address, customerData, function(err){
+                            _data.update('customers', email_address, customerData, function(err){
                                 if(!err){
                                     callback(200)
                                 } else{
@@ -718,11 +738,83 @@ handlers._shoppingCart.delete = function(data, callback){
                     }
                 })
             } else{
-                callback(400, {'Error': 'Token doesn\'t exist or is not valid'})
+                callback(403,{"Error" : "Missing required token in header, or token is invalid."});
             }
         })
     } else{
         callback(400, {'Error': 'Missing required fields'})
+    }
+}
+
+// Orders
+handlers.orders = function(data, callback){
+    var optionalMethods = ['post', 'get', 'put', 'delete'];
+    if(optionalMethods.indexOf(data.method) > -1){
+        handlers._orders[data.method](data, callback);
+    } else{
+        callback(405);
+    }
+}
+
+handlers._orders = {}
+
+// Order - POST
+// required data - token_id, email_address, agreement
+handlers._orders.post = function(data, callback){
+    var email_address = typeof(data.payload.email_address) == 'string' && data.payload.email_address.trim().length > 0 && data.payload.email_address.trim().indexOf('@') > -1 && data.payload.email_address.trim().indexOf('.') > -1&& (data.payload.email_address.trim().split('.').length -1) >= 2 ? data.payload.email_address.trim() : false;
+    var agreement = typeof(data.payload.agreement) == 'boolean' && data.payload.agreement == true ? true : false;
+    
+    if(email_address && agreement){
+        var token_id = typeof(data.headers.token_id) == 'string' && data.headers.token_id.trim().length == 20 ? data.headers.token_id.trim() : false;
+        
+        handlers._tokens.verifyTokenValidation(token_id, email_address, function(tokenIsValid){
+            if(tokenIsValid){
+                _data.read('customers', email_address, function(err, customerData){
+                    if(!err && customerData){
+                        var totalPrice = 0
+                        var allNames = []
+                        customerData.shopping_cart.forEach(function(item){
+                            _data.read('menu', item, function(err, menuData){
+                                if(!err && menuData){
+                                    totalPrice+=menuData.price
+                                    allNames.push(menuData.name)
+                                    console.log(totalPrice)
+
+                                } else{
+                                    callback(400, {'Error': 'item may not exist'})
+                                }
+
+                                });
+                            });
+
+                        setTimeout(function(){
+                            var orderData = {
+                                "amount": totalPrice * 100,
+                                "currency": "czk",
+                                "source": "tok_visa_debit",
+                                "description": "Your order is done"
+                            }
+                            helpers.makePayment(orderData, function(err){
+                                if(!err){
+                                    callback(200, {"success": "done"})
+                                } else{
+                                    callback(500, {'erorr': 'sfdsf'})
+                                }
+                            })
+                        }, 100)
+                        
+                    } else{
+                        callback(400, {'Error': 'Customer may not exist'})
+                    }
+                })
+            } else{
+                callback(403,{"Error" : "Missing required token in header, or token is invalid."});
+            }
+        })
+        
+
+    } else{
+        callback(400, {'Error':'Missing required field'})
     }
 }
 

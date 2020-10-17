@@ -9,10 +9,10 @@ var config = require('./lib/config')
 var fs = require('fs')
 
 var makingPay = {
-    "amount": 1500,
+    "amount": 120 * 100,
     "currency": "czk",
     "source": "tok_visa_debit",
-    "description": "hello there"
+    "description": "tak jo"
 }
 
 helpers.makePayment(makingPay, function(err){
@@ -95,7 +95,8 @@ router = {
     'customers': handlers.customers,
     'tokens': handlers.tokens,
     'menu': handlers.menu,
-    'shopping-cart': handlers.shoppingCart
+    'shopping-cart': handlers.shoppingCart,
+    'orders': handlers.orders
 }
 
 

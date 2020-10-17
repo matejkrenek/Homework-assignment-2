@@ -21,7 +21,7 @@ lib.create = function(dir, file, data, callback){
         if(!err && fd){
 
             var stringData = JSON.stringify(data)
-
+ 
             fs.writeFile(fd, stringData, function(err){
                 if(!err){
                     fs.close(fd, function(err){
@@ -98,15 +98,15 @@ lib.delete = function(dir, file, callback){
 
 
 lib.list = function(dir,callback){
-    fs.readdir(lib.baseDir+dir+'/', function(err,files){
-      if(!err && files && data.files > 0){
+    fs.readdir(lib.storeDir+dir+'/', function(err,files){
+      if(!err && files && files.length > 0){
         var trimmedFileNames = [];
-        data.forEach(function(fileName){
+        files.forEach(function(fileName){
           trimmedFileNames.push(fileName.replace('.json',''));
         });
         callback(false,trimmedFileNames);
       } else {
-        callback(err,data);
+        callback(err,files);
       }
     });
   };
